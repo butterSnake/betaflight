@@ -113,13 +113,19 @@ PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, MAX_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 5);
 
+// Scaling factors for Pids for better tunable range in configurator for betaflight pid controller. The scaling is based on legacy pid controller or previous float
+static float PTERM_SCALE[] = {0.01473334f, 0.0160145f, 0.02081885f};
+static float ITERM_SCALE[] = {0.10997145f, 0.1221905f, 0.10997145f};
+static float DTERM_SCALE[] = {0.00013225f, 0.00014283f,0.00014283f};
+
+
 void resetPidProfile(pidProfile_t *pidProfile)
 {
     RESET_CONFIG(pidProfile_t, pidProfile,
         .pid = {
-            [PID_ROLL] =  { 46, 45, 25, 60 },
-            [PID_PITCH] = { 50, 50, 27, 60 },
-            [PID_YAW] =   { 65, 45, 0 , 60 },
+            [PID_ROLL] =  { 100, 100, 100, 100 },
+            [PID_PITCH] = { 100, 100, 100, 100 },
+            [PID_YAW] =   { 100, 100, 0 , 100 },
             [PID_LEVEL] = { 50, 50, 75, 0 },
             [PID_MAG] =   { 40, 0, 0, 0 },
         },
@@ -431,9 +437,9 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         feedForwardTransition = 100.0f / pidProfile->feedForwardTransition;
     }
     for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-        pidCoefficient[axis].Kp = PTERM_SCALE * pidProfile->pid[axis].P;
-        pidCoefficient[axis].Ki = ITERM_SCALE * pidProfile->pid[axis].I;
-        pidCoefficient[axis].Kd = DTERM_SCALE * pidProfile->pid[axis].D;
+        pidCoefficient[axis].Kp = PTERM_SCALE[axis] * pidProfile->pid[axis].P;
+        pidCoefficient[axis].Ki = ITERM_SCALE[axis] * pidProfile->pid[axis].I;
+        pidCoefficient[axis].Kd = DTERM_SCALE[axis] * pidProfile->pid[axis].D;
         pidCoefficient[axis].Kf = FEEDFORWARD_SCALE * (pidProfile->pid[axis].F / 100.0f);
     }
 
