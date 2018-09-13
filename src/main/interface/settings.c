@@ -534,10 +534,17 @@ const clivalue_t valueTable[] = {
 #ifdef USE_MULTI_GYRO
     { "gyro_to_use",                VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GYRO }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_to_use) },
 #endif
+
 #if defined(USE_GYRO_DATA_ANALYSE)
     { "dyn_fft_location",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DYNAMIC_FFT_LOCATION }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_fft_location) },
     { "dyn_filter_width_percent",   VAR_UINT8  | MASTER_VALUE, .config.minmax = { 1, 99 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_filter_width_percent) },
     { "dyn_filter_range",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DYNAMIC_FILTER_RANGE }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_filter_range) },
+    { "dyn_gyro_lpf",               VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_gyro_lpf) },
+    { "dyn_dterm_lpf",              VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_dterm_lpf) },
+    { "dyn_lpf_cutoff_percent",     VAR_UINT8  | MASTER_VALUE, .config.minmax = { 1, 100 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_lpf_cutoff_percent) },
+    { "dyn_lpf2_cutoff_percent",    VAR_UINT8  | MASTER_VALUE, .config.minmax = { 1, 100 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_lpf2_cutoff_percent) },
+    { "dyn_dlpf_cutoff_percent",    VAR_UINT8  | MASTER_VALUE, .config.minmax = { 1, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, dyn_dlpf_cutoff_percent) },
+    { "dyn_dlpf2_cutoff_percent",   VAR_UINT8  | MASTER_VALUE, .config.minmax = { 1, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, dyn_dlpf2_cutoff_percent) },
 #endif
 
 // PG_ACCELEROMETER_CONFIG

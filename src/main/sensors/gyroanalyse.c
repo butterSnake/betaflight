@@ -41,6 +41,8 @@
 #include "sensors/gyro.h"
 #include "sensors/gyroanalyse.h"
 
+#include "flight/pid.h"
+
 // The FFT splits the frequency domain into an number of bins
 // A sampling frequency of 1000 and max frequency of 500 at a window size of 32 gives 16 frequency bins each 31.25Hz wide
 // Eg [0,31), [31,62), [62, 93) etc
@@ -67,7 +69,13 @@ static uint16_t FAST_RAM_ZERO_INIT   dynamicNotchMinCenterHz;
 static uint16_t FAST_RAM_ZERO_INIT   dynamicNotchMaxCenterHz;
 static uint16_t FAST_RAM_ZERO_INIT   dynamicNotchMinCutoffHz;
 static float FAST_RAM_ZERO_INIT      dynamicFilterWidthFactor;
+static float FAST_RAM_ZERO_INIT      dynamicLpfCutoffFactor;
+static float FAST_RAM_ZERO_INIT      dynamicLpf2CutoffFactor;
 static uint8_t dynamicFilterRange;
+static bool dynGyrolpf;
+static bool dynDtermlpf;
+static int16_t FAST_RAM_ZERO_INIT   lpfMinCutoff;
+static int16_t FAST_RAM_ZERO_INIT   lpf2MinCutoff;
 
 // Hanning window, see https://en.wikipedia.org/wiki/Window_function#Hann_.28Hanning.29_window
 static FAST_RAM_ZERO_INIT float hanningWindow[FFT_WINDOW_SIZE];
@@ -83,6 +91,12 @@ void gyroDataAnalyseInit(uint32_t targetLooptimeUs)
 #endif
 
     dynamicFilterRange = gyroConfig()->dyn_filter_range;
+    dynGyrolpf = gyroConfig()->dyn_gyro_lpf;
+    dynDtermlpf = gyroConfig()->dyn_dterm_lpf;
+    dynamicLpfCutoffFactor = gyroConfig()->dyn_lpf_cutoff_percent / 100;
+    dynamicLpf2CutoffFactor = gyroConfig()->dyn_lpf2_cutoff_percent / 100;
+    lpfMinCutoff = gyroConfig()->gyro_lowpass_hz;
+    lpf2MinCutoff = gyroConfig()->gyro_lowpass2_hz;
     
     fftSamplingRateHz = 1000;
     if (dynamicFilterRange == DYN_FILTER_RANGE_HIGH) {
@@ -329,8 +343,18 @@ static FAST_CODE_NOINLINE void gyroDataAnalyseUpdate(gyroAnalyseState_t *state, 
             // 7us
             // calculate cutoffFreq and notch Q, update notch filter
             const float cutoffFreq = fmax(state->centerFreq[state->updateAxis] * dynamicFilterWidthFactor, dynamicNotchMinCutoffHz);
+            const float lpfCutoffFreq = fmax(state->centerFreq[state->updateAxis] * dynamicLpfCutoffFactor, lpfMinCutoff);
+            const float lpf2CutoffFreq = fmax(state->centerFreq[state->updateAxis] * dynamicLpf2CutoffFactor, lpf2MinCutoff);
             const float notchQ = filterGetNotchQ(state->centerFreq[state->updateAxis], cutoffFreq);
             biquadFilterUpdate(&notchFilterDyn[state->updateAxis], state->centerFreq[state->updateAxis], gyro.targetLooptime, notchQ, FILTER_NOTCH);
+
+            if (dynGyrolpf) {
+                gyroUpdatelpf(state->updateAxis, lpfCutoffFreq);
+                gyroUpdatelpf2(state->updateAxis, lpf2CutoffFreq);
+            }
+            if (dynDtermlpf) {
+                pidUpdateDTermFilters(state->updateAxis, state->centerFreq[state->updateAxis], notchQ);
+            }
 
             DEBUG_SET(DEBUG_FFT_TIME, 1, micros() - startTime);
 

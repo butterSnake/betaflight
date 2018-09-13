@@ -102,6 +102,9 @@ typedef struct pidProfile_s {
     uint16_t dterm_notch_hz;                // Biquad dterm notch hz
     uint16_t dterm_notch_cutoff;            // Biquad dterm notch low cutoff
 
+    uint8_t dyn_dlpf_cutoff_percent;
+    uint8_t dyn_dlpf2_cutoff_percent;
+
     pidf_t  pid[PID_ITEM_COUNT];
 
     uint8_t dterm_filter_type;              // Filter selection for dterm
@@ -198,3 +201,6 @@ bool pidOsdAntiGravityActive(void);
 bool pidOsdAntiGravityMode(void);
 void pidSetAntiGravityState(bool newState);
 bool pidAntiGravityEnabled(void);
+#ifdef USE_GYRO_DATA_ANALYSE
+void pidUpdateDTermFilters(uint8_t axis, float centerFreq, float notchQ);
+#endif // USE_GYRO_DATA_ANALYSE
