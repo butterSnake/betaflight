@@ -189,7 +189,7 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .gyro_hardware_lpf = GYRO_HARDWARE_LPF_NORMAL,
     .gyro_32khz_hardware_lpf = GYRO_32KHZ_HARDWARE_LPF_NORMAL,
     .gyro_lowpass_type = FILTER_PT1,
-    .gyro_lowpass_hz = 100,
+    .gyro_lowpass_hz = 150,
     .gyro_lowpass2_type = FILTER_PT1,
     .gyro_lowpass2_hz = 300,
     .gyro_high_fsr = false,
@@ -206,6 +206,10 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .dyn_filter_width_percent = 40,
     .dyn_fft_location = DYN_FFT_AFTER_STATIC_FILTERS,
     .dyn_filter_range = DYN_FILTER_RANGE_MEDIUM,
+    .dyn_gyro_lpf_enable = true,
+    .dyn_gyro_lpf_max_hz = 400,
+    .dyn_gyro_lpf_idle = 20,
+
 );
 
 #ifdef USE_MULTI_GYRO
@@ -525,6 +529,38 @@ bool gyroInit(void)
     return ret;
 }
 
+static bool dynThrottleEnabled = false;
+static bool dynThrottleIsPt1 = false;
+static float dynThrottleIdle;
+static float dynThrottleIdlePoint;
+static float dynThrottleInvIdlePoint;
+static uint16_t dynThrottleDiff;
+static uint16_t dynThrottleMin;
+
+static void dynThrottleInit()
+{
+    if (gyroConfig()->dyn_gyro_lpf_enable == true) {
+        if (gyroConfig()->gyro_lowpass_hz > 0 ){
+            dynThrottleMin = gyroConfig()->gyro_lowpass_hz;
+            if (gyroConfig()->gyro_lowpass_type == FILTER_PT1) {
+                dynThrottleEnabled = true;
+                dynThrottleIsPt1 = true;
+            } else if (gyroConfig()->gyro_lowpass_type == FILTER_BIQUAD) {
+                dynThrottleEnabled = true;
+                dynThrottleIsPt1 = false;
+            } else {
+                dynThrottleEnabled = false;
+            }
+        }
+    } else {
+        dynThrottleEnabled = false;
+    }
+    dynThrottleIdle = gyroConfig()->dyn_gyro_lpf_idle / 100.0f;
+    dynThrottleIdlePoint = (dynThrottleIdle - (dynThrottleIdle * dynThrottleIdle * dynThrottleIdle) / 3) * 1.5f;
+    dynThrottleInvIdlePoint = 1 / (1 - dynThrottleIdlePoint);
+    dynThrottleDiff = gyroConfig()->dyn_gyro_lpf_max_hz - dynThrottleMin;
+}
+
 void gyroInitLowpassFilterLpf(gyroSensor_t *gyroSensor, int slot, int type, uint16_t lpfHz)
 {
     filterApplyFnPtr *lowpassFilterApplyFn;
@@ -566,7 +602,7 @@ void gyroInitLowpassFilterLpf(gyroSensor_t *gyroSensor, int slot, int type, uint
             }
             break;
         case FILTER_BIQUAD:
-            *lowpassFilterApplyFn = (filterApplyFnPtr) biquadFilterApply;
+            *lowpassFilterApplyFn = (filterApplyFnPtr) biquadFilterApplyDF1;
             for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
                 biquadFilterInitLPF(&lowpassFilter[axis].biquadFilterState, lpfHz, gyro.targetLooptime);
             }
@@ -674,6 +710,8 @@ static void gyroInitSensorFilters(gyroSensor_t *gyroSensor)
 #ifdef USE_GYRO_DATA_ANALYSE
     gyroInitFilterDynamicNotch(gyroSensor);
 #endif
+
+    dynThrottleInit();
 }
 
 void gyroInitFilters(void)
@@ -1086,3 +1124,31 @@ uint8_t gyroReadRegister(uint8_t whichSensor, uint8_t reg)
     return mpuGyroReadRegister(gyroSensorBusByDevice(whichSensor), reg);
 }
 #endif // USE_GYRO_REGISTER_DUMP
+
+void dynThrottleUpdateGyrolpf(float throttle)
+{
+    if (dynThrottleEnabled) {
+
+        uint16_t cutoffFreq = dynThrottleMin;
+
+        if (throttle > dynThrottleIdle) {
+            const float dynThrottle = (throttle - (throttle * throttle * throttle) / 3) * 1.5f;
+            cutoffFreq += (dynThrottle - dynThrottleIdlePoint) * dynThrottleInvIdlePoint * dynThrottleDiff;
+         }
+
+#ifdef USE_GYRO_DATA_ANALYSE
+        DEBUG_SET(DEBUG_FFT_FREQ, 1, cutoffFreq);
+#endif //USE_GYRO_DATA_ANALYSE
+
+        if (dynThrottleIsPt1) {
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                const float gyroDt = gyro.targetLooptime * 1e-6f;
+                pt1FilterUpdateCutoff(&gyroSensor1.lowpassFilter[axis].pt1FilterState, pt1FilterGain(cutoffFreq, gyroDt));
+            }
+        } else {
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                biquadFilterUpdateLPF(&gyroSensor1.lowpassFilter[axis].biquadFilterState, cutoffFreq, gyro.targetLooptime);
+            }
+        }
+    }
+}

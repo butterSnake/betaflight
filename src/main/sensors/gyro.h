@@ -95,6 +95,10 @@ typedef struct gyroConfig_s {
     uint8_t dyn_filter_width_percent;
     uint8_t dyn_fft_location; // before or after static filters
     uint8_t dyn_filter_range; // ignore any FFT bin below this threshold
+    uint8_t dyn_gyro_lpf_enable;
+    uint16_t dyn_gyro_lpf_max_hz;
+    uint16_t dyn_gyro_lpf_idle;
+
 } gyroConfig_t;
 
 PG_DECLARE(gyroConfig_t, gyroConfig);
@@ -117,3 +121,4 @@ bool gyroOverflowDetected(void);
 bool gyroYawSpinDetected(void);
 uint16_t gyroAbsRateDps(int axis);
 uint8_t gyroReadRegister(uint8_t whichSensor, uint8_t reg);
+void dynThrottleUpdateGyrolpf(float throttle);

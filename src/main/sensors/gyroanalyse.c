@@ -41,6 +41,8 @@
 #include "sensors/gyro.h"
 #include "sensors/gyroanalyse.h"
 
+#include "flight/pid.h"
+
 // The FFT splits the frequency domain into an number of bins
 // A sampling frequency of 1000 and max frequency of 500 at a window size of 32 gives 16 frequency bins each 31.25Hz wide
 // Eg [0,31), [31,62), [62, 93) etc
@@ -104,7 +106,6 @@ void gyroDataAnalyseInit(uint32_t targetLooptimeUs)
     dynamicNotchMinCenterHz = fftSamplingRateHz / DYN_NOTCH_MIN_CENTRE_DIV;
     dynamicNotchMinCutoffHz = fftSamplingRateHz / DYN_NOTCH_MIN_CUTOFF_DIV;
     dynamicFilterWidthFactor = (100.0f - gyroConfig()->dyn_filter_width_percent) / 100;
-
 
     for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
         hanningWindow[i] = (0.5f - 0.5f * cos_approx(2 * M_PIf * i / (FFT_WINDOW_SIZE - 1)));
@@ -311,6 +312,7 @@ static FAST_CODE_NOINLINE void gyroDataAnalyseUpdate(gyroAnalyseState_t *state, 
             centerFreq = constrain(centerFreq, dynamicNotchMinCenterHz, dynamicNotchMaxCenterHz);
             centerFreq = biquadFilterApply(&state->detectedFrequencyFilter[state->updateAxis], centerFreq);
             centerFreq = constrain(centerFreq, dynamicNotchMinCenterHz, dynamicNotchMaxCenterHz);
+            state->prevCenterFreq[state->updateAxis] = state->centerFreq[state->updateAxis];
             state->centerFreq[state->updateAxis] = centerFreq;
 
             if (state->updateAxis == 0) {
@@ -318,7 +320,7 @@ static FAST_CODE_NOINLINE void gyroDataAnalyseUpdate(gyroAnalyseState_t *state, 
                DEBUG_SET(DEBUG_FFT_FREQ, 0, state->centerFreq[state->updateAxis]);
             }
             if (state->updateAxis == 1) {
-                DEBUG_SET(DEBUG_FFT_FREQ, 1, state->centerFreq[state->updateAxis]);
+//                DEBUG_SET(DEBUG_FFT_FREQ, 1, state->centerFreq[state->updateAxis]);
             }
             // Debug FFT_Freq carries raw gyro, gyro after first filter set, FFT centre for roll and for pitch
             DEBUG_SET(DEBUG_FFT_TIME, 1, micros() - startTime);
@@ -328,9 +330,12 @@ static FAST_CODE_NOINLINE void gyroDataAnalyseUpdate(gyroAnalyseState_t *state, 
         {
             // 7us
             // calculate cutoffFreq and notch Q, update notch filter
-            const float cutoffFreq = fmax(state->centerFreq[state->updateAxis] * dynamicFilterWidthFactor, dynamicNotchMinCutoffHz);
-            const float notchQ = filterGetNotchQ(state->centerFreq[state->updateAxis], cutoffFreq);
-            biquadFilterUpdate(&notchFilterDyn[state->updateAxis], state->centerFreq[state->updateAxis], gyro.targetLooptime, notchQ, FILTER_NOTCH);
+
+            if(state->prevCenterFreq[state->updateAxis] != state->centerFreq[state->updateAxis]) {
+                const float cutoffFreq = fmax(state->centerFreq[state->updateAxis] * dynamicFilterWidthFactor, dynamicNotchMinCutoffHz);
+                const float notchQ = filterGetNotchQ(state->centerFreq[state->updateAxis], cutoffFreq);
+                biquadFilterUpdate(&notchFilterDyn[state->updateAxis], state->centerFreq[state->updateAxis], gyro.targetLooptime, notchQ, FILTER_NOTCH);
+            }
 
             DEBUG_SET(DEBUG_FFT_TIME, 1, micros() - startTime);
 

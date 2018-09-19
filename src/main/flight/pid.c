@@ -125,11 +125,12 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .pidSumLimit = PIDSUM_LIMIT,
         .pidSumLimitYaw = PIDSUM_LIMIT_YAW,
         .yaw_lowpass_hz = 0,
-        .dterm_lowpass_hz = 100,    // dual PT1 filtering ON by default
-        .dterm_lowpass2_hz = 200,   // second Dterm LPF ON by default
+        .dterm_lowpass_hz = 150,    // dual PT1 filtering ON by default
+        .dterm_lowpass2_hz = 180,   // second Dterm LPF ON by default
         .dterm_notch_hz = 0,
         .dterm_notch_cutoff = 0,
-        .dterm_filter_type = FILTER_PT1,
+        .dterm_filter_type = FILTER_BIQUAD,
+        .dterm_filter2_type = FILTER_BIQUAD,
         .itermWindupPointPercent = 40,
         .vbatPidCompensation = 0,
         .pidAtMinThrottle = PID_STABILISATION_ON,
@@ -166,6 +167,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .abs_control_limit = 90,
         .abs_control_error_limit = 20,
         .antiGravityMode = ANTI_GRAVITY_SMOOTH,
+        .dyn_dterm_lpf_enable = true,
+        .dyn_dterm_lpf_max_hz = 200,
+        .dyn_dterm_lpf_idle = 20,
     );
 }
 
@@ -212,7 +216,7 @@ static FAST_RAM_ZERO_INIT biquadFilter_t dtermNotch[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermLowpassApplyFn;
 static FAST_RAM_ZERO_INIT dtermLowpass_t dtermLowpass[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermLowpass2ApplyFn;
-static FAST_RAM_ZERO_INIT pt1Filter_t dtermLowpass2[XYZ_AXIS_COUNT];
+static FAST_RAM_ZERO_INIT dtermLowpass_t dtermLowpass2[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT filterApplyFnPtr ptermYawLowpassApplyFn;
 static FAST_RAM_ZERO_INIT pt1Filter_t ptermYawLowpass;
 #if defined(USE_ITERM_RELAX)
@@ -258,7 +262,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
     }
 
     if (dTermNotchHz != 0 && pidProfile->dterm_notch_cutoff != 0) {
-        dtermNotchApplyFn = (filterApplyFnPtr)biquadFilterApply;
+        dtermNotchApplyFn = (filterApplyFnPtr)biquadFilterApplyDF1;
         const float notchQ = filterGetNotchQ(dTermNotchHz, pidProfile->dterm_notch_cutoff);
         for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
             biquadFilterInit(&dtermNotch[axis], dTermNotchHz, targetPidLooptime, notchQ, FILTER_NOTCH);
@@ -271,9 +275,22 @@ void pidInitFilters(const pidProfile_t *pidProfile)
     if (pidProfile->dterm_lowpass2_hz == 0 || pidProfile->dterm_lowpass2_hz > pidFrequencyNyquist) {
     	dtermLowpass2ApplyFn = nullFilterApply;
     } else {
-        dtermLowpass2ApplyFn = (filterApplyFnPtr)pt1FilterApply;
-        for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-            pt1FilterInit(&dtermLowpass2[axis], pt1FilterGain(pidProfile->dterm_lowpass2_hz, dT));
+        switch (pidProfile->dterm_filter2_type) {
+        default:
+            dtermLowpass2ApplyFn = nullFilterApply;
+            break;
+        case FILTER_PT1:
+            dtermLowpass2ApplyFn = (filterApplyFnPtr)pt1FilterApply;
+            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
+                pt1FilterInit(&dtermLowpass2[axis].pt1Filter, pt1FilterGain(pidProfile->dterm_lowpass2_hz, dT));
+            }
+            break;
+        case FILTER_BIQUAD:
+            dtermLowpass2ApplyFn = (filterApplyFnPtr)biquadFilterApply;
+            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
+                biquadFilterInitLPF(&dtermLowpass2[axis].biquadFilter, pidProfile->dterm_lowpass2_hz, targetPidLooptime);
+            }
+            break;
         }
     }
 
@@ -291,7 +308,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
             }
             break;
         case FILTER_BIQUAD:
-            dtermLowpassApplyFn = (filterApplyFnPtr)biquadFilterApply;
+            dtermLowpassApplyFn = (filterApplyFnPtr)biquadFilterApplyDF1;
             for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
                 biquadFilterInitLPF(&dtermLowpass[axis].biquadFilter, pidProfile->dterm_lowpass_hz, targetPidLooptime);
             }
@@ -421,6 +438,15 @@ void pidUpdateAntiGravityThrottleFilter(float throttle)
     }
 }
 
+
+static bool dynThrottleEnabled = false;
+static bool dynThrottleIsPt1 = false;
+static float dynThrottleIdle;
+static float dynThrottleIdlePoint;
+static float dynThrottleInvIdlePoint;
+static uint16_t dynThrottleDiff;
+static uint16_t dynThrottleMin;
+
 void pidInitConfig(const pidProfile_t *pidProfile)
 {
     if (pidProfile->feedForwardTransition == 0) {
@@ -495,6 +521,27 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     acLimit = (float)pidProfile->abs_control_limit;
     acErrorLimit = (float)pidProfile->abs_control_error_limit;
 #endif
+
+    if (pidProfile->dyn_dterm_lpf_enable == true) {
+        if (pidProfile->dterm_lowpass_hz > 0 ){
+            dynThrottleMin = pidProfile->dterm_lowpass_hz;
+            if (pidProfile->dterm_filter_type == FILTER_PT1) {
+                dynThrottleEnabled = true;
+                dynThrottleIsPt1 = true;
+            } else if (pidProfile->dterm_filter_type == FILTER_BIQUAD) {
+                dynThrottleEnabled = true;
+                dynThrottleIsPt1 = false;
+            } else {
+                dynThrottleEnabled = false;
+            }
+        }
+    } else {
+        dynThrottleEnabled = false;
+    }
+    dynThrottleIdle = pidProfile->dyn_dterm_lpf_idle / 100.0f;
+    dynThrottleIdlePoint = (dynThrottleIdle - (dynThrottleIdle * dynThrottleIdle * dynThrottleIdle) / 3) * 1.5f;
+    dynThrottleInvIdlePoint = 1 / (1 - dynThrottleIdlePoint);
+    dynThrottleDiff = pidProfile->dyn_dterm_lpf_max_hz - dynThrottleMin;
 }
 
 void pidInit(const pidProfile_t *pidProfile)
@@ -1114,4 +1161,28 @@ void pidSetAntiGravityState(bool newState)
 bool pidAntiGravityEnabled(void)
 {
     return antiGravityEnabled;
+}
+
+void dynThrottleUpdateDTermlpf(float throttle)
+{
+    if (dynThrottleEnabled) {
+
+        uint16_t cutoffFreq = dynThrottleMin;
+
+        if (throttle > dynThrottleIdle) {
+            const float dynThrottle = (throttle - (throttle * throttle * throttle) / 3) * 1.5f;
+            cutoffFreq += (dynThrottle - dynThrottleIdlePoint) * dynThrottleInvIdlePoint * dynThrottleDiff;
+         }
+
+        if (dynThrottleIsPt1) {
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                const float gyroDt = gyro.targetLooptime * 1e-6f;
+                pt1FilterUpdateCutoff(&dtermLowpass[axis].pt1Filter, pt1FilterGain(cutoffFreq, gyroDt));
+            }
+        } else {
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                biquadFilterUpdateLPF(&dtermLowpass[axis].biquadFilter, cutoffFreq, gyro.targetLooptime);
+            }
+        }
+    }
 }
