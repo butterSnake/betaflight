@@ -174,8 +174,9 @@ STATIC_UNIT_TESTED gyroSensor_t * const gyroSensorPtr = &gyroSensor1;
 STATIC_UNIT_TESTED gyroDev_t * const gyroDevPtr = &gyroSensor1.gyroDev;
 #endif
 
-#ifndef USE_GYRO_IMUF9001
+//#ifndef USE_GYRO_IMUF9001
 static void gyroInitSensorFilters(gyroSensor_t *gyroSensor);
+#ifndef USE_GYRO_IMUF9001
 static void gyroInitLowpassFilterLpf(gyroSensor_t *gyroSensor, int slot, int type, uint16_t lpfHz);
 #endif
 
@@ -234,6 +235,8 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .imuf_pitch_af = IMUF_DEFAULT_PITCH_AF,
     .imuf_yaw_af = IMUF_DEFAULT_YAW_AF,
     .gyro_offset_yaw = 0,
+    .dyn_notch_quality = 70,
+    .dyn_notch_width_percent = 50,
 );
 #else //USE_GYRO_IMUF9001
 PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
@@ -577,9 +580,9 @@ static bool gyroInitSensor(gyroSensor_t *gyroSensor)
         gyroSensor->gyroDev.gyroHasOverflowProtection = false;  // default catch for newly added gyros until proven to be unaffected
         break;
     }
-#ifndef USE_GYRO_IMUF9001
+//#ifndef USE_GYRO_IMUF9001
     gyroInitSensorFilters(gyroSensor);
-
+#ifndef USE_GYRO_IMUF9001
 #ifdef USE_GYRO_DATA_ANALYSE
     gyroDataAnalyseStateInit(&gyroSensor->gyroAnalyseState, gyro.targetLooptime);
 #endif
@@ -812,6 +815,9 @@ static void gyroInitFilterNotch2(gyroSensor_t *gyroSensor, uint16_t notchHz, uin
     }
 }
 
+#endif //imu
+
+
 #ifdef USE_GYRO_DATA_ANALYSE
 static bool isDynamicFilterActive(void)
 {
@@ -832,9 +838,9 @@ static void gyroInitFilterDynamicNotch(gyroSensor_t *gyroSensor)
 }
 #endif
 
-
 static void gyroInitSensorFilters(gyroSensor_t *gyroSensor)
 {
+#ifndef USE_GYRO_IMUF9001    
 #if defined(USE_GYRO_SLEW_LIMITER)
     gyroInitSlewLimiter(gyroSensor);
 #endif
@@ -855,11 +861,13 @@ static void gyroInitSensorFilters(gyroSensor_t *gyroSensor)
 
     gyroInitFilterNotch1(gyroSensor, gyroConfig()->gyro_soft_notch_hz_1, gyroConfig()->gyro_soft_notch_cutoff_1);
     gyroInitFilterNotch2(gyroSensor, gyroConfig()->gyro_soft_notch_hz_2, gyroConfig()->gyro_soft_notch_cutoff_2);
+#endif
 #ifdef USE_GYRO_DATA_ANALYSE
     gyroInitFilterDynamicNotch(gyroSensor);
 #endif
 }
 
+#ifndef USE_GYRO_IMUF9001    
 void gyroInitFilters(void)
 {
     gyroInitSensorFilters(&gyroSensor1);
@@ -1163,6 +1171,17 @@ static FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t* gyroSensor, timeUs
         // still calibrating, so no need to further process gyro data
         return;
     }
+
+#ifdef USE_GYRO_DATA_ANALYSE
+        if (isDynamicFilterActive()) {
+            gyroDataAnalysePush(&gyroSensor->gyroAnalyseState, axis, gyroADCf);
+            gyroADCf = gyroSensor->notchFilterDynApplyFn((filter_t *)&gyroSensor->notchFilterDyn[axis], gyroADCf);
+            if (axis == X) {
+                GYRO_FILTER_DEBUG_SET(DEBUG_FFT, 1, lrintf(gyroADCf)); // store data after dynamic notch
+            }
+        }
+#endif
+
 #endif
 
 #ifdef USE_GYRO_OVERFLOW_CHECK
