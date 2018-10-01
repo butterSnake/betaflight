@@ -219,7 +219,9 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .imuf_yaw_lpf_cutoff_hz = IMUF_DEFAULT_LPF_HZ,
     .imuf_roll_af = IMUF_DEFAULT_ROLL_AF,
     .imuf_pitch_af = IMUF_DEFAULT_PITCH_AF,
-    .imuf_yaw_af = IMUF_DEFAULT_YAW_AF
+    .imuf_yaw_af = IMUF_DEFAULT_YAW_AF,
+    .dyn_notch_quality = 70,
+    .dyn_notch_width_percent = 50,
 );
 #else //USE_GYRO_IMUF9001
 PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
@@ -1083,6 +1085,18 @@ static FAST_CODE void checkForYawSpin(gyroSensor_t *gyroSensor, timeUs_t current
 #include "gyro_filter_impl.h"
 #undef GYRO_FILTER_FUNCTION_NAME
 #undef GYRO_FILTER_DEBUG_SET
+#else
+#define GYRO_FILTER_FUNCTION_NAME filterGyro
+#define GYRO_FILTER_DEBUG_SET(...)
+#include "gyro_filter_imfu.h"
+#undef GYRO_FILTER_FUNCTION_NAME
+#undef GYRO_FILTER_DEBUG_SET
+
+#define GYRO_FILTER_FUNCTION_NAME filterGyroDebug
+#define GYRO_FILTER_DEBUG_SET DEBUG_SET
+#include "gyro_filter_imfu.h"
+#undef GYRO_FILTER_FUNCTION_NAME
+#undef GYRO_FILTER_DEBUG_SET
 #endif
 
 static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSensor, timeUs_t currentTimeUs)
@@ -1130,6 +1144,7 @@ static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSens
         #endif
 
         alignSensors(gyroSensor->gyroDev.gyroADC, gyroSensor->gyroDev.gyroAlign);
+
     } else {
         performGyroCalibration(gyroSensor, gyroConfig()->gyroMovementCalibrationThreshold);
         // still calibrating, so no need to further process gyro data
@@ -1149,13 +1164,11 @@ static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSens
     }
 #endif
 
-#ifndef USE_GYRO_IMUF9001
     if (gyroDebugMode == DEBUG_NONE) {
         filterGyro(gyroSensor, sampleDeltaUs);
     } else {
         filterGyroDebug(gyroSensor, sampleDeltaUs);
     }
-#endif //USE_GYRO_IMUF9001
 
 #ifdef USE_GYRO_DATA_ANALYSE
     if (isDynamicFilterActive()) {
