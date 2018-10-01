@@ -582,12 +582,12 @@ static bool gyroInitSensor(gyroSensor_t *gyroSensor)
     }
 //#ifndef USE_GYRO_IMUF9001
     gyroInitSensorFilters(gyroSensor);
-#ifndef USE_GYRO_IMUF9001
+//#ifndef USE_GYRO_IMUF9001
 #ifdef USE_GYRO_DATA_ANALYSE
     gyroDataAnalyseStateInit(&gyroSensor->gyroAnalyseState, gyro.targetLooptime);
 #endif
 
-#endif //USE_GYRO_IMUF9001
+//#endif //USE_GYRO_IMUF9001
 
     return true;
 }
