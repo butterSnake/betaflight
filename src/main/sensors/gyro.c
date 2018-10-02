@@ -1085,19 +1085,7 @@ static FAST_CODE void checkForYawSpin(gyroSensor_t *gyroSensor, timeUs_t current
 #include "gyro_filter_impl.h"
 #undef GYRO_FILTER_FUNCTION_NAME
 #undef GYRO_FILTER_DEBUG_SET
-#else
-#define GYRO_FILTER_FUNCTION_NAME filterGyro
-#define GYRO_FILTER_DEBUG_SET(...)
-#include "gyro_filter_imfu.h"
-#undef GYRO_FILTER_FUNCTION_NAME
-#undef GYRO_FILTER_DEBUG_SET
 
-#define GYRO_FILTER_FUNCTION_NAME filterGyroDebug
-#define GYRO_FILTER_DEBUG_SET DEBUG_SET
-#include "gyro_filter_imfu.h"
-#undef GYRO_FILTER_FUNCTION_NAME
-#undef GYRO_FILTER_DEBUG_SET
-#endif
 
 static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSensor, timeUs_t currentTimeUs)
 {
@@ -1115,6 +1103,15 @@ static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSens
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         // NOTE: this branch optimized for when there is no gyro debugging, ensure it is kept in step with non-optimized branch
         DEBUG_SET(DEBUG_GYRO_SCALED, axis, lrintf(gyroSensor->gyroDev.gyroADCf[axis]));
+#ifdef USE_GYRO_DATA_ANALYSE
+        if (isDynamicFilterActive()) {
+            gyroDataAnalysePush(&gyroSensor->gyroAnalyseState, axis, gyroSensor->gyroDev.gyroADCf[axis]);
+            gyroSensor->gyroDev.gyroADCf[axis] = gyroSensor->notchFilterDynApplyFn((filter_t *)&gyroSensor->notchFilterDyn[axis], gyroSensor->gyroDev.gyroADCf[axis]);
+            if (axis == X) {
+                GYRO_FILTER_DEBUG_SET(DEBUG_FFT, 1, lrintf(gyroSensor->gyroDev.gyroADCf[axis])); // store data after dynamic notch
+            }
+        }
+#endif
         if (!gyroSensor->overflowDetected) {
             // integrate using trapezium rule to avoid bias
             accumulatedMeasurements[axis] += 0.5f * (gyroPrevious[axis] + gyroSensor->gyroDev.gyroADCf[axis]) * sampleDeltaUs;
@@ -1164,11 +1161,13 @@ static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSens
     }
 #endif
 
+#ifndef USE_GYRO_IMUF9001
     if (gyroDebugMode == DEBUG_NONE) {
         filterGyro(gyroSensor, sampleDeltaUs);
     } else {
         filterGyroDebug(gyroSensor, sampleDeltaUs);
     }
+#endif
 
 #ifdef USE_GYRO_DATA_ANALYSE
     if (isDynamicFilterActive()) {
