@@ -103,6 +103,7 @@ typedef struct gyroConfig_s {
     uint16_t dyn_dterm_lpf_max_hz;
     uint16_t dyn_dterm_lpf_min_hz;
     uint16_t dyn_dterm_lpf_idle;
+    uint16_t dyn_notch_cut_in;
 
 } gyroConfig_t;
 

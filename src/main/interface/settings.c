@@ -546,6 +546,7 @@ const clivalue_t valueTable[] = {
     { "dyn_dterm_lpf_max_hz",            VAR_UINT16  | MASTER_VALUE, .config.minmax = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_dterm_lpf_max_hz) },
     { "dyn_dterm_lpf_min_hz",            VAR_UINT16  | MASTER_VALUE, .config.minmax = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_dterm_lpf_min_hz) },
     { "dyn_dterm_lpf_idle",              VAR_UINT16  | MASTER_VALUE, .config.minmax = { 0, 100 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_dterm_lpf_idle) },
+    { "dyn_notch_cut_in",              VAR_UINT16  | MASTER_VALUE, .config.minmax = { 0, 100 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_notch_cut_in) },
 #endif
 
 // PG_ACCELEROMETER_CONFIG

@@ -214,6 +214,7 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .dyn_dterm_lpf_max_hz = 250,
     .dyn_dterm_lpf_min_hz = 100,
     .dyn_dterm_lpf_idle = 20,
+    .dyn_notch_cut_in = 60,
 );
 
 #ifdef USE_MULTI_GYRO
@@ -536,6 +537,8 @@ bool gyroInit(void)
 #ifdef USE_GYRO_DATA_ANALYSE
 bool isGlpf = false;
 bool isBiGlpf = false;
+bool isGNotch = false;
+bool activateNotch = false;
 #endif //USE_GYRO_DATA_ANALYSE
 
 void gyroInitLowpassFilterLpf(gyroSensor_t *gyroSensor, int slot, int type, uint16_t lpfHz)
@@ -631,6 +634,7 @@ static void gyroInitFilterNotch1(gyroSensor_t *gyroSensor, uint16_t notchHz, uin
             biquadFilterInit(&gyroSensor->notchFilter1[axis], notchHz, gyro.targetLooptime, notchQ, FILTER_NOTCH);
         }
     }
+    isGNotch = true;
 }
 
 static void gyroInitFilterNotch2(gyroSensor_t *gyroSensor, uint16_t notchHz, uint16_t notchCutoffHz)
@@ -1136,6 +1140,10 @@ void gyroUpdatelpf(float throttle)
                 biquadFilterUpdateLPF(&gyroSensor1.lowpassFilter[axis].biquadFilterState, cutoffFreq, gyro.targetLooptime);
             }
         }
+        if (isGNotch){
+            throttle < (gyroConfig()->dyn_notch_cut_in / 100.0) ? activateNotch = false : true;
+        }
+
     }
 }
 #endif //USE_GYRO_DATA_ANALYSE
