@@ -1141,7 +1141,7 @@ void gyroUpdatelpf(float throttle)
             }
         }
         if (isGNotch){
-            throttle < (gyroConfig()->dyn_notch_cut_in / 100.0) ? activateNotch = false : true;
+            throttle < (gyroConfig()->dyn_notch_cut_in / 100.0f) ? activateNotch = false : true;
         }
 
     }
