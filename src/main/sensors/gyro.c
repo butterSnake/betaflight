@@ -1085,7 +1085,7 @@ static FAST_CODE void checkForYawSpin(gyroSensor_t *gyroSensor, timeUs_t current
 #include "gyro_filter_impl.h"
 #undef GYRO_FILTER_FUNCTION_NAME
 #undef GYRO_FILTER_DEBUG_SET
-
+#endif
 
 static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSensor, timeUs_t currentTimeUs)
 {
@@ -1108,7 +1108,7 @@ static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSens
             gyroDataAnalysePush(&gyroSensor->gyroAnalyseState, axis, gyroSensor->gyroDev.gyroADCf[axis]);
             gyroSensor->gyroDev.gyroADCf[axis] = gyroSensor->notchFilterDynApplyFn((filter_t *)&gyroSensor->notchFilterDyn[axis], gyroSensor->gyroDev.gyroADCf[axis]);
             if (axis == X) {
-                GYRO_FILTER_DEBUG_SET(DEBUG_FFT, 1, lrintf(gyroSensor->gyroDev.gyroADCf[axis])); // store data after dynamic notch
+                DEBUG_SET(DEBUG_FFT, 1, lrintf(gyroSensor->gyroDev.gyroADCf[axis])); // store data after dynamic notch
             }
         }
 #endif
