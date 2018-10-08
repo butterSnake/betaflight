@@ -78,7 +78,7 @@ typedef struct gyroConfig_s {
 
     uint16_t gyro_soft_notch_hz_1;
     uint16_t gyro_soft_notch_cutoff_1;
-    uint16_t gyro_soft_notch_hz_!_roll;
+    uint16_t gyro_soft_notch_hz_1_roll;
     uint16_t gyro_soft_notch_cutoff_1_roll;
     uint16_t gyro_soft_notch_hz_1_pitch;
     uint16_t gyro_soft_notch_cutoff_1_pitch;
