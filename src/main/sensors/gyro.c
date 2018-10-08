@@ -197,6 +197,10 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .gyro_to_use = GYRO_CONFIG_USE_GYRO_DEFAULT,
     .gyro_soft_notch_hz_1 = 0,
     .gyro_soft_notch_cutoff_1 = 0,
+    .gyro_soft_notch_hz_1_roll = 0,
+    .gyro_soft_notch_cutoff_1_roll = 0,
+    .gyro_soft_notch_hz_1_pitch = 0,
+    .gyro_soft_notch_cutoff_1_pitch = 0,
     .gyro_soft_notch_hz_2 = 0,
     .gyro_soft_notch_cutoff_2 = 0,
     .checkOverflow = GYRO_OVERFLOW_CHECK_ALL_AXES,
@@ -621,7 +625,7 @@ void gyroInitSlewLimiter(gyroSensor_t *gyroSensor) {
 }
 #endif
 
-static void gyroInitFilterNotch1(gyroSensor_t *gyroSensor, uint16_t notchHz, uint16_t notchCutoffHz)
+static void gyroInitFilterNotch1(gyroSensor_t *gyroSensor, uint16_t notchHz, uint16_t notchCutoffHz, uint16_t notchHz_roll, uint16_t notchCutoffHz_roll, uint16_t notchHz_pitch, uint16_t notchCutoffHz_pitch)
 {
     gyroSensor->notchFilter1ApplyFn = nullFilterApply;
 
@@ -693,7 +697,7 @@ static void gyroInitSensorFilters(gyroSensor_t *gyroSensor)
       gyroConfig()->gyro_lowpass2_hz
     );
 
-    gyroInitFilterNotch1(gyroSensor, gyroConfig()->gyro_soft_notch_hz_1, gyroConfig()->gyro_soft_notch_cutoff_1);
+    gyroInitFilterNotch1(gyroSensor, gyroConfig()->gyro_soft_notch_hz_1, gyroConfig()->gyro_soft_notch_cutoff_1, gyroConfig()->gyro_soft_notch_hz_1_roll, gyroConfig()->gyro_soft_notch_cutoff_1_roll, gyroConfig()->gyro_soft_notch_hz_1_pitch, gyroConfig()->gyro_soft_notch_cutoff_1_pitch);
     gyroInitFilterNotch2(gyroSensor, gyroConfig()->gyro_soft_notch_hz_2, gyroConfig()->gyro_soft_notch_cutoff_2);
 #ifdef USE_GYRO_DATA_ANALYSE
     gyroInitFilterDynamicNotch(gyroSensor);

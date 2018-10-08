@@ -63,7 +63,7 @@ typedef enum {
 } filterSlots;
 
 typedef struct gyroConfig_s {
-    uint8_t  gyro_align;                       // gyro alignment
+    uint8_t  gyro_align;                        // gyro alignment
     uint8_t  gyroMovementCalibrationThreshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
     uint8_t  gyro_sync_denom;                  // Gyro sample divider
     uint8_t  gyro_hardware_lpf;                // gyro DLPF setting
@@ -78,8 +78,13 @@ typedef struct gyroConfig_s {
 
     uint16_t gyro_soft_notch_hz_1;
     uint16_t gyro_soft_notch_cutoff_1;
+    uint16_t gyro_soft_notch_hz_!_roll;
+    uint16_t gyro_soft_notch_cutoff_1_roll;
+    uint16_t gyro_soft_notch_hz_1_pitch;
+    uint16_t gyro_soft_notch_cutoff_1_pitch;
     uint16_t gyro_soft_notch_hz_2;
     uint16_t gyro_soft_notch_cutoff_2;
+
     int16_t  gyro_offset_yaw;
     uint8_t  checkOverflow;
 
