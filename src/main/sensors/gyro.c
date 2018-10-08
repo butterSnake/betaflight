@@ -148,6 +148,8 @@ typedef struct gyroSensor_s {
 #endif // USE_YAW_SPIN_RECOVERY
 
 #ifdef USE_GYRO_DATA_ANALYSE
+    #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350
+    #define DYNAMIC_NOTCH_DEFAULT_CUTOFF_HZ 300
     gyroAnalyseState_t gyroAnalyseState;
 #endif
 } gyroSensor_t;
@@ -220,8 +222,9 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .imuf_roll_af = IMUF_DEFAULT_ROLL_AF,
     .imuf_pitch_af = IMUF_DEFAULT_PITCH_AF,
     .imuf_yaw_af = IMUF_DEFAULT_YAW_AF,
-    .dyn_notch_quality = 70,
-    .dyn_notch_width_percent = 50,
+    .dyn_filter_width_percent = 40,	    
+    .dyn_fft_location = DYN_FFT_AFTER_STATIC_FILTERS,
+    .dyn_filter_range = DYN_FILTER_RANGE_MEDIUM,
 );
 #else //USE_GYRO_IMUF9001
 PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
@@ -246,8 +249,9 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .gyro_offset_yaw = 0,
     .yaw_spin_recovery = true,
     .yaw_spin_threshold = 1950,
-    .dyn_notch_quality = 70,
-    .dyn_notch_width_percent = 50,
+    .dyn_filter_width_percent = 40,	    
+    .dyn_fft_location = DYN_FFT_AFTER_STATIC_FILTERS,
+    .dyn_filter_range = DYN_FILTER_RANGE_MEDIUM,
 );
 #endif //USE_GYRO_IMUF9001
 
@@ -720,7 +724,7 @@ void gyroInitLowpassFilterLpf(gyroSensor_t *gyroSensor, int slot, int type, uint
 
     // Dereference the pointer to null before checking valid cutoff and filter
     // type. It will be overridden for positive cases.
-    *lowpassFilterApplyFn = &nullFilterApply;
+    *lowpassFilterApplyFn = nullFilterApply;
 
     // If lowpass cutoff has been specified and is less than the Nyquist frequency
     if (lpfHz && lpfHz <= gyroFrequencyNyquist) {
@@ -806,9 +810,9 @@ static void gyroInitFilterDynamicNotch(gyroSensor_t *gyroSensor)
 
     if (isDynamicFilterActive()) {
         gyroSensor->notchFilterDynApplyFn = (filterApplyFnPtr)biquadFilterApplyDF1; // must be this function, not DF2
-        const float notchQ = filterGetNotchQ(400, 390); //just any init value
+        const float notchQ = filterGetNotchQ(DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DYNAMIC_NOTCH_DEFAULT_CUTOFF_HZ); // any defaults OK here
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadFilterInit(&gyroSensor->notchFilterDyn[axis], 400, gyro.targetLooptime, notchQ, FILTER_NOTCH);
+            biquadFilterInit(&gyroSensor->notchFilterDyn[axis], DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, gyro.targetLooptime, notchQ, FILTER_NOTCH);
         }
     }
 }
