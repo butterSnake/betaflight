@@ -810,7 +810,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
     pidUpdateAntiGravityThrottleFilter(throttle);
 
     static FAST_RAM_ZERO_INIT float throttlePrev = 0;
-    if (fabsf(throttle - throttlePrev) > 0.015f) {
+    if (fabsf(throttle - throttlePrev) > 0.01f) {
         dynThrottleUpdateGyrolpf(throttle);
         dynThrottleUpdateDTermlpf(throttle);
         throttlePrev = throttle;
