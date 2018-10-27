@@ -37,6 +37,7 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(gyroSensor_t *gyroSensor)
 
             gyroDataAnalysePush(&gyroSensor->gyroAnalyseState, axis, gyroDataForAnalysis);
             gyroADCf = gyroSensor->notchFilterDynApplyFn((filter_t *)&gyroSensor->notchFilterDyn[axis], gyroADCf);
+            gyroADCf = gyroSensor->notchFilterDyn2ApplyFn((filter_t *)&gyroSensor->notchFilterDyn2[axis], gyroADCf);
         }
 #endif
 

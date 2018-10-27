@@ -56,7 +56,8 @@ enum {
 enum {
     DYN_LPF_NONE = 0,
     DYN_LPF_PT1,
-    DYN_LPF_BIQUAD
+    DYN_LPF_BIQUAD,
+    DYN_LPF_NOTCH
 };
 
 #define GYRO_CONFIG_USE_GYRO_1      0
@@ -98,9 +99,11 @@ typedef struct gyroConfig_s {
 
     uint16_t gyroCalibrationDuration;  // Gyro calibration duration in 1/100 second
     
-    uint8_t dyn_filter_width_percent;
+    uint8_t  dyn_filter_width_hz;
+    uint16_t dyn_filter_q;
     uint8_t dyn_fft_location; // before or after static filters
     uint8_t dyn_filter_range; // ignore any FFT bin below this threshold
+    uint16_t dyn_lpf_gyro_min_hz;
     uint16_t dyn_lpf_gyro_max_hz;
     uint8_t  dyn_lpf_gyro_idle;
 } gyroConfig_t;

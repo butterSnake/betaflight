@@ -115,8 +115,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
 {
     RESET_CONFIG(pidProfile_t, pidProfile,
         .pid = {
-            [PID_ROLL] =  { 46, 45, 25, 60 },
-            [PID_PITCH] = { 50, 50, 27, 60 },
+            [PID_ROLL] =  { 46, 45, 30, 60 },
+            [PID_PITCH] = { 50, 50, 32, 60 },
             [PID_YAW] =   { 45, 100, 0, 100 },
             [PID_LEVEL] = { 50, 50, 75, 0 },
             [PID_MAG] =   { 40, 0, 0, 0 },
@@ -162,7 +162,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .abs_control_limit = 90,
         .abs_control_error_limit = 20,
         .antiGravityMode = ANTI_GRAVITY_SMOOTH,
-        .dyn_lpf_dterm_max_hz = 200,
+        .dyn_lpf_dterm_max_hz = 250,
         .dyn_lpf_dterm_idle = 20,
         .dterm_lowpass_hz = 100,    // dual PT1 filtering ON by default
         .dterm_lowpass2_hz = 200,   // second Dterm LPF ON by default
@@ -175,8 +175,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .launchControlTriggerMode = LAUNCH_CONTROL_TRIGGER_MODE_MULTIPLE,
     );
 #ifdef USE_DYN_LPF
-    pidProfile->dterm_lowpass_hz = 120;
-    pidProfile->dterm_lowpass2_hz = 180;
+    pidProfile->dterm_lowpass_hz = 175;
+    pidProfile->dterm_lowpass2_hz = 150;
     pidProfile->dterm_filter_type = FILTER_BIQUAD;
     pidProfile->dterm_filter2_type = FILTER_BIQUAD;
 #endif
@@ -1126,7 +1126,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, const rollAndPitchT
         // b = 1 and only c (feedforward weight) can be tuned (amount derivative on measurement or error).
 
         // -----calculate P component
-        pidData[axis].P = pidCoefficient[axis].Kp * errorRate * tpaFactor;
+        pidData[axis].P = pidCoefficient[axis].Kp * errorRate;
         if (axis == FD_YAW) {
             pidData[axis].P = ptermYawLowpassApplyFn((filter_t *) &ptermYawLowpass, pidData[axis].P);
         }
