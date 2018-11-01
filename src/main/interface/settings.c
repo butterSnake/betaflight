@@ -385,7 +385,7 @@ static const char * const lookupTableDynamicFftLocation[] = {
     "BEFORE_STATIC_FILTERS", "AFTER_STATIC_FILTERS"
 };
 static const char * const lookupTableDynamicFilterRange[] = {
-    "HIGH", "MEDIUM", "LOW"
+    "HIGH", "MEDIUM", "LOW", "AUTO"
 };
 #endif // USE_GYRO_DATA_ANALYSE
 

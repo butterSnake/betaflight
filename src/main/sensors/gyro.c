@@ -218,7 +218,7 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->dyn_filter_width_hz = 25;
     gyroConfig->dyn_filter_q = 120;
     gyroConfig->dyn_fft_location = DYN_FFT_AFTER_STATIC_FILTERS;
-    gyroConfig->dyn_filter_range = DYN_FILTER_RANGE_MEDIUM;
+    gyroConfig->dyn_filter_range = DYN_FILTER_RANGE_AUTO;
     gyroConfig->dyn_lpf_gyro_min_hz = 120;
     gyroConfig->dyn_lpf_gyro_max_hz = 500;
     gyroConfig->dyn_lpf_gyro_idle = 15;

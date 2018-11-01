@@ -85,13 +85,25 @@ void gyroDataAnalyseInit(uint32_t targetLooptimeUs)
 #endif
 
     dynamicFilterRange = gyroConfig()->dyn_filter_range;
-    
     fftSamplingRateHz = 1000;
-    if (dynamicFilterRange == DYN_FILTER_RANGE_HIGH) {
-        fftSamplingRateHz = 2000;
-    }
-    else if (dynamicFilterRange == DYN_FILTER_RANGE_MEDIUM) {
-        fftSamplingRateHz = 1333;
+    fftBinOffset = FFT_BIN_OFFSET;
+
+    if (dynamicFilterRange == DYN_FILTER_RANGE_AUTO) {
+        if (gyroConfig()->dyn_lpf_gyro_max_hz > 333) {
+            fftSamplingRateHz = 1333;
+        }
+        if (gyroConfig()->dyn_lpf_gyro_max_hz > 610) {
+            fftSamplingRateHz = 2000;
+            fftBinOffset = 1;
+        }
+    } else {
+        if (dynamicFilterRange == DYN_FILTER_RANGE_HIGH) {
+            fftSamplingRateHz = 2000;
+            fftBinOffset = 1;
+        }
+        else if (dynamicFilterRange == DYN_FILTER_RANGE_MEDIUM) {
+            fftSamplingRateHz = 1333;
+        }
     }
     // If we get at least 3 samples then use the default FFT sample frequency
     // otherwise we need to calculate a FFT sample frequency to ensure we get 3 samples (gyro loops < 4K)
@@ -100,7 +112,6 @@ void gyroDataAnalyseInit(uint32_t targetLooptimeUs)
     fftSamplingRateHz = MIN((gyroLoopRateHz / 3), fftSamplingRateHz);
 
     fftResolution = (float)fftSamplingRateHz / FFT_WINDOW_SIZE;
-    fftBinOffset = FFT_BIN_OFFSET;
 
     dynamicNotchMaxCenterHz = fftSamplingRateHz / 2; //Nyquist
     dynamicNotchMinCenterHz = fftSamplingRateHz / DYN_NOTCH_MIN_CENTRE_DIV;
@@ -310,9 +321,9 @@ static FAST_CODE_NOINLINE void gyroDataAnalyseUpdate(gyroAnalyseState_t *state, 
                 centerFreq = state->prevCenterFreq[state->updateAxis];
             }
             // constrain and low-pass smooth centre frequency
-            centerFreq = constrain(centerFreq, dynamicNotchMinCenterHz, dynamicNotchMaxCenterHz);
+//            centerFreq = constrain(centerFreq, dynamicNotchMinCenterHz, dynamicNotchMaxCenterHz);
             centerFreq = biquadFilterApply(&state->detectedFrequencyFilter[state->updateAxis], centerFreq);
-            centerFreq = constrain(centerFreq, dynamicNotchMinCenterHz, dynamicNotchMaxCenterHz);
+//            centerFreq = constrain(centerFreq, dynamicNotchMinCenterHz, dynamicNotchMaxCenterHz);
             state->centerFreq[state->updateAxis] = centerFreq;
 
             if (state->updateAxis == 0) {
