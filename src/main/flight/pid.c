@@ -175,7 +175,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .launchControlTriggerMode = LAUNCH_CONTROL_TRIGGER_MODE_MULTIPLE,
     );
 #ifdef USE_DYN_LPF
-    pidProfile->dterm_lowpass_hz = 175;
+    pidProfile->dterm_lowpass_hz = 150;
     pidProfile->dterm_lowpass2_hz = 150;
     pidProfile->dterm_filter_type = FILTER_BIQUAD;
     pidProfile->dterm_filter2_type = FILTER_BIQUAD;

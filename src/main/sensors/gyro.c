@@ -220,10 +220,11 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->dyn_fft_location = DYN_FFT_AFTER_STATIC_FILTERS;
     gyroConfig->dyn_filter_range = DYN_FILTER_RANGE_MEDIUM;
     gyroConfig->dyn_lpf_gyro_min_hz = 120;
-    gyroConfig->dyn_lpf_gyro_max_hz = 400;
-    gyroConfig->dyn_lpf_gyro_idle = 20;
+    gyroConfig->dyn_lpf_gyro_max_hz = 500;
+    gyroConfig->dyn_lpf_gyro_idle = 15;
 #ifdef USE_DYN_LPF
     gyroConfig->gyro_lowpass_hz = 120;
+    gyroConfig->gyro_lowpass_type = FILTER_BIQUAD;
     gyroConfig->gyro_lowpass2_hz = 0;
 #endif
 }
