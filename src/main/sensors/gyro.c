@@ -501,6 +501,7 @@ bool gyroInit(void)
     case DEBUG_GYRO_RAW:
     case DEBUG_GYRO_SCALED:
     case DEBUG_GYRO_FILTERED:
+    case DEBUG_DYN_LPF:
         gyroDebugMode = debugMode;
         break;
     default:
@@ -1212,11 +1213,12 @@ void dynLpfGyroUpdate(float throttle)
 {
     if (dynLpfFilter != DYN_LPF_NONE) {
         uint16_t cutoffFreq = dynLpfMin;
+        DEBUG_SET(DEBUG_DYN_LPF, 2, throttle);
         if (throttle > dynLpfIdle) {
             const float dynThrottle = (throttle - (throttle * throttle * throttle) / 3.0f) * 1.5f;
             cutoffFreq += (dynThrottle - dynLpfIdlePoint) * dynLpfInvIdlePointScaled;
         }
-        DEBUG_SET(DEBUG_FFT_FREQ, 1, cutoffFreq);
+        DEBUG_SET(DEBUG_DYN_LPF, 1, cutoffFreq);
         if (dynLpfFilter == DYN_LPF_PT1) {
             const float gyroDt = gyro.targetLooptime * 1e-6f;
             for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
